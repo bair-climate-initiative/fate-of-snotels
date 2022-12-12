@@ -1,6 +1,13 @@
 # Fate of Snotels
 This library provides a set of utilities and analysis code for the Fate Of Snotels™ project.
 
+## TODOs
+- [x] Create fos package
+- [x] Add getting install instructions
+- [ ] Add getting started instructions for a new team member
+- [ ] Add end-to-end tests
+- [ ] Add example notebooks (see [nbs/cjr-dev.ipynb][nbs/cjr-dev.ipynb] for WIP example)
+
 
 ## Installation and Quickstart
 
