@@ -5,6 +5,9 @@ This library provides a set of utilities and analysis code for the Fate Of Snote
 ## Installation and Quickstart
 
 ```bash
+# If on a NERSC system
+module load python
+
 # Clone the repo -- request from colorado.j.reed _at_ gmail.com if you do not have permission
 git clone https://github.com/bair-climate-initiative/fate-of-snotels
 cd fate-of-snotels
@@ -15,8 +18,6 @@ conda activate fos
 
 # Install fos (in editable mode, so that you can update the code and have the updates propagated)
 pip install -e .
-
-TODO add commands
 ```
 
 ## Development
@@ -25,7 +26,13 @@ The following section provides startup instructions for further developing MR An
 ### Structure
 
 ```
-TODO describe data and code structure
+- README.md : this file
+- setup.cfg : add new dependencies here
+- pyproject.toml : can probably ignore this (sets up the build system)
+nbs/ : notebooks, development and exploratory code
+scripts/ : scripts for running and launching reproducbile analysis
+fos/: the main package directory
+    - utils.py: common utilities, data loading, etc.
 ```
 
 ### Development Setup
@@ -53,7 +60,7 @@ pytest --cov=fos --cov-report=html
 ### FAQ
 
 * Do I have to follow the structure of this project or can I just make a ipynb / script for my analysis?
-> Do whatever makes your life easiest! You can easily import the utils from the fos package as 
+> Do whatever makes your life easiest! For using version control with your notebooks, you can add them to the `nbs/` directory. You can easily import the utils from the fos package as 
 ```python
 from fos import utils
 ```

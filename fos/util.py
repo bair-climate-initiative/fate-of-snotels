@@ -4,9 +4,12 @@ This module contains common utility functions used throughout the package.
 """
 
 import datetime
+import glob
 import os
 
 import dask
+import geopandas as gpd
+import netCDF4 as nc
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -18,10 +21,29 @@ console = Console()
 # CONSTANTS
 MM_TO_IN = 0.03937008
 
+# Keep global variables available to all modules
+basedir = "/global/cfs/cdirs"
+domain = "d02"
+projectdir = os.path.join(basedir, "m4099", "fate-of-snotel")
 
-def _read_wharf_input_data(dir_meta, domain):
-    """Read netcdf4 wrf data, and return lat, lon, height, and the filename"""
-    infile = os.path.jsoin(dir_meta, f"wrfinput_{domain}")
+
+def setup(
+    new_basedir: str = "/global/cfs/cdirs",
+    new_domain: str = "d02",
+    new_projectdir: str = None,
+):
+    """! Set up the package environment."""
+    global basedir, domain, projectdir
+    basedir = new_basedir
+    domain = new_domain
+    if new_projectdir is None:
+        new_projectdir = os.path.join(basedir, "m4099", "fate-of-snotel")
+    projectdir = new_projectdir
+
+
+def _read_wrf_meta_data(dir_meta: str, domain: str):
+    """Read wrf meta data from nc4 files, and return lat, lon, height, and the filename"""
+    infile = os.path.join(dir_meta, f"wrfinput_{domain}")
     data = xr.open_dataset(infile, engine="netcdf4")
     lat = data.variables["XLAT"]
     lon = data.variables["XLONG"]
@@ -42,7 +64,7 @@ def _wrfread_gcm(model, gcm, variant, dir, var, domain):
             and domain in ii
         ):
             if domain in ii:
-                read_files.append(dir + str(ii))
+                read_files.append(os.path.join(dir, str(ii)))
 
     del all_files
     # nf = len(read_files)
@@ -88,6 +110,7 @@ def screen_times_wrf(data, date_start, date_end):
 
 
 def get_peak_date_amt(data):
+    """Get peak date and amount for each water year (Oct 1 to Oct 1)."""
     startyear = np.nanmin(data.index.year)
     endyear = np.nanmax(data.index.year)
     maxvals = []
@@ -98,13 +121,12 @@ def get_peak_date_amt(data):
         startdate = datetime.date(year=wy - 1, month=10, day=1)
         enddate = datetime.date(year=wy, month=10, day=1)
         timemask = (data.index.date >= startdate) & (data.index.date < enddate)
-        wydata = data["SWE"][timemask]
+        wydata = data.SWE[timemask]
+        if len(wydata) == 0:
+            continue
         maxval = np.nanmax(wydata)
         maxarg = np.nanargmax(wydata)
         maxdate = wydata.index[maxarg].date()
-        # if maxarg < 100 :
-        #    maxarg = np.nan
-        #    maxdate = np.nan
         maxvals.append(maxval)
         maxargs.append(maxarg)
         maxdates.append(maxdate)
@@ -125,3 +147,117 @@ def shift_to_dowy(doy):
     wystart = datetime.datetime(year=wy, month=10, day=1)
     dowy = (targ - wystart).days
     return dowy
+
+
+def get_coords():
+    """Get the coordinates of the WRF grid and snotels."""
+    coorddir = os.path.join(projectdir, "WRF-data", "wrf_coordinates")
+    dir_meta = coorddir
+
+    # Load the location of all wrf pixels
+    lat1, lon1, z1, _ = _read_wrf_meta_data(dir_meta, domain)
+    lon_wrf = lon1[0, :, :]
+    lat_wrf = lat1[0, :, :]
+    z_wrf = z1[0, :, :]
+    lat_wrf = xr.DataArray(lat_wrf, dims=["lat2d", "lon2d"])
+    lon_wrf = xr.DataArray(lon_wrf, dims=["lat2d", "lon2d"])
+    z_wrf = xr.DataArray(z_wrf, dims=["lat2d", "lon2d"])
+
+    # Load the location info for all snotels
+    coords = nc.Dataset(os.path.join(coorddir, "wrfinput_d02_coord.nc"))
+    snoteldir = os.path.join(projectdir, "snoteldata")
+    snotelmeta = pd.read_csv(os.path.join(snoteldir, "..", "snotelmeta.csv"))
+    huc6 = gpd.read_file(os.path.join(projectdir, "spatialdata", "huc6.shp"))
+    huc8 = gpd.read_file(os.path.join(projectdir, "spatialdata", "huc8.shp"))
+    snotel_gdf = gpd.GeoDataFrame(
+        data={
+            "site_name": snotelmeta.site_name,
+            "elev": snotelmeta.elev,
+            "site_number": snotelmeta.site_number,
+            "state": snotelmeta.state,
+            "namestr": snotelmeta.namestr,
+            "startdt": snotelmeta.startdt,
+        },
+        geometry=gpd.points_from_xy(snotelmeta.lon, snotelmeta.lat),
+        crs="epsg:4326",
+    )
+
+    return snotel_gdf, coords, huc6, huc8
+
+
+def get_wrf_data():
+    """!
+    Read in the wrf data - WIP.
+
+    basedir [str]: base directory for wrf data, defauls to perlmutter system,
+        use '/global/project/projectdirs/' for cori system
+    domain [str]: domain to read in, defaults to 'd02'
+    """
+    # log the bc models available
+    wrfdir = os.path.join(projectdir, "wrfdata")
+    bc_glob = glob.glob(os.path.join(wrfdir, "*_bc"))
+    bcmodels = [val.split("/")[-1] for val in bc_glob]
+    assert len(bcmodels) > 0, f"No BC models found in {wrfdir}"
+    console.log("Available BC Models:", bcmodels)
+
+    # change the model
+    model = "ukesm1-0-ll"  # the other ones have no data maybe?
+    var = "snow"
+    gcm = model
+    variant = "r2i1p1f2"
+    date_start_pd, date_end_pd = [1980, 1, 1], [2013, 12, 31]  # 30 years, historical
+    model = "hist"
+    modeldir = os.path.join(wrfdir, gcm + "_bc")
+
+    var_wrf = _wrfread_gcm(model, gcm, variant, modeldir, var, domain)
+    var_wrf = screen_times_wrf(var_wrf, date_start_pd, date_end_pd)
+
+    # future dates
+    date_start_pd, date_end_pd = [2014, 1, 1], [2100, 12, 31]
+    model = "ssp370"
+    modeldir = modeldir = os.path.join(wrfdir, gcm + "_bc")
+    var_wrf_ssp370 = _wrfread_gcm(model, gcm, variant, modeldir, var, domain)
+    var_wrf_ssp370 = screen_times_wrf(var_wrf_ssp370, date_start_pd, date_end_pd)
+
+    return dict(var_wrf=var_wrf, var_wrf_ssp370=var_wrf_ssp370)
+
+
+def create_wrf_df(snotel_gdf: gpd.GeoDataFrame):
+    """! Create a dataframe of WRF data for each snotel site."""
+    snotel_no_ak = snotel_gdf[snotel_gdf.state != "AK"]
+
+    day1 = datetime.datetime(year=1980, day=1, month=9)
+    days = []
+    for i in range(42960):  # hardcoded number of days TODO fix this hardcoding
+        days.append(day1 + datetime.timedelta(days=i))
+
+    # hold the data for a dataframe
+    snoteldir = os.path.join(projectdir, "snoteldata")
+    entries = []
+    datadir = os.path.join(projectdir, "wrfts", "ukesm1-0-ll_bc")
+    for i, entry in snotel_no_ak.iterrows():
+        try:
+            num = entry.site_number
+            name = entry.site_name.replace(" ", "").replace("(", "").replace(")", "")
+            pt = [entry.geometry.x, entry.geometry.y]
+            wrfpoint = np.load(os.path.join(datadir, f"wrfpoint_{name}.npy"))
+            wrfbasin = np.load(os.path.join(datadir, f"wrfbasin_{name}.npy"))
+            wrfpoint = pd.DataFrame(
+                wrfpoint * MM_TO_IN, columns=["SWE"], index=pd.to_datetime(days)
+            )
+            wrfbasin = pd.DataFrame(
+                wrfbasin * MM_TO_IN, columns=["SWE"], index=pd.to_datetime(days)
+            )
+            snotelpoint = pd.read_csv(
+                os.path.join(snoteldir, f"snotel{num}.csv"),
+                index_col=0,
+                parse_dates=True,
+            )
+            wpt = get_peak_date_amt(wrfpoint)
+            wbas = get_peak_date_amt(wrfbasin)
+            sm = get_peak_date_amt(snotelpoint)
+            entries.append(dict(name=name, wpt=wpt, wbas=wbas, sm=sm, pt=pt))
+        except FileNotFoundError:
+            continue
+    res = gpd.GeoDataFrame(entries)
+    return res
