@@ -32,7 +32,13 @@ def setup(
     new_domain: str = "d02",
     new_projectdir: str = None,
 ):
-    """! Set up the package environment."""
+    """! Set up the package environment.
+    Call setup(new_basedir, new_domain, new_projectdir) to set up the environment,
+    e.g. if you are on perlmutter call
+    ```
+    setup("/global/project/projectdirs/")
+    ```
+    """
     global basedir, domain, projectdir
     basedir = new_basedir
     domain = new_domain
