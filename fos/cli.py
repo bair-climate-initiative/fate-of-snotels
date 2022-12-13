@@ -9,7 +9,7 @@ import sys
 
 import click
 
-from fos.util import console
+from fos.util import console, create_wrf_df, get_coords
 
 
 @click.group()
@@ -45,6 +45,18 @@ def cli(profile: bool, profile_output: str) -> None:
 
         atexit.register(exit)
     console.log("Beginning analysis...", style="bold yellow")
+
+
+@click.command()
+def dev():
+    """
+    Command for development purposes.
+    """
+    res = get_coords()
+    create_wrf_df(res["snotel_gdf"])
+
+
+cli.add_command(dev)
 
 
 # TODO

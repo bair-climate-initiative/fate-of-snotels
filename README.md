@@ -6,6 +6,7 @@ This library provides a set of utilities and analysis code for the Fate Of Snote
 - [x] Add getting install instructions
 - [ ] Add getting started instructions for a new team member
 - [ ] Add end-to-end tests
+- [ ] Add caching for slow loading operations (with command line / api override)
 - [ ] Add example notebooks (see [nbs/cjr-dev.ipynb][nbs/cjr-dev.ipynb] for WIP example)
 
 
@@ -39,7 +40,7 @@ The following section provides startup instructions for further developing MR An
 nbs/ : notebooks, development and exploratory code
 scripts/ : scripts for running and launching reproducbile analysis
 fos/: the main package directory
-    - utils.py: common utilities, data loading, etc.
+    - util.py: common utilities, data loading, etc.
 ```
 
 ### Development Setup
@@ -69,7 +70,7 @@ pytest --cov=fos --cov-report=html
 * Do I have to follow the structure of this project or can I just make a ipynb / script for my analysis?
 > Do whatever makes your life easiest! For using version control with your notebooks, you can add them to the `nbs/` directory. You can easily import the utils from the fos package as 
 ```python
-from fos import utils
+from fos import util
 ```
 
 * How do I add a new dependency?
