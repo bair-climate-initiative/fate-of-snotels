@@ -53,6 +53,18 @@ pre-commit install
 ```bash
 pre-commit run  --all-files
 ```
+### Caching
+Have an expensive function that you want to cache? Use the `cache` decorator from `fos.util`:
+```python
+from fos.util import memory
+
+@memory.cache
+def expensive_function():
+    # do something expensive
+    return result
+```
+
+Control the cache location with the `FOS_CACHE_DIR` environment variable. The default is `~/.fos_cachedir`.
 
 ### Testing
 All tests can be run through:
@@ -76,3 +88,11 @@ from fos import util
 * How do I add a new dependency?
 > Add it to [setup.cfg](setup.cfg) under `install_requires`. Use `pip freeze` or `conda list` to figure out the version.
 
+
+### NERSC Tips
+```
+module load python
+module load hdf
+export HDF5_USE_FILE_LOCKING=FALSE
+```
+* On cori, you may need to set `export HDF5_USE_FILE_LOCKING=FALSE` if you recieve an hdf5 error.

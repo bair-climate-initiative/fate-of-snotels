@@ -7,6 +7,6 @@ def test_get_wrf_data():
 
 
 def test_create_wrf_df():
-    snotel_gdf, _, _, _ = util.get_coords()
-    res = util.create_wrf_df(snotel_gdf)
+    res = util.get_coords()
+    res = util.create_wrf_df(res["snotel_gdf"])
     assert res is not None, "WRF dataframe not created"

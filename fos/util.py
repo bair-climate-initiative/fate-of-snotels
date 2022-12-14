@@ -15,7 +15,13 @@ import netCDF4 as nc
 import numpy as np
 import pandas as pd
 import xarray as xr
+from joblib import Memory
 from rich.console import Console
+
+# caching directory - get from environment variable
+location = os.environ.get("FOS_CACHE_DIR", "~/.fos_cachedir")
+memory = Memory(location, verbose=1)
+
 
 ##! Shared logging console object # noqa: E265
 console = Console()
@@ -160,6 +166,7 @@ def shift_to_dowy(doy):
     return dowy
 
 
+@memory.cache
 def get_coords(include_huc=False):
     """Get the coordinates of the WRF grid and snotels."""
     coorddir = os.path.join(projectdir, "WRF-data", "wrf_coordinates")
@@ -201,6 +208,7 @@ def get_coords(include_huc=False):
     return res
 
 
+@memory.cache
 def get_wrf_data(wrfdir_name: str = "wrfdata"):
     """!
     Read in the wrf data - WIP.
@@ -264,6 +272,7 @@ def _process_row(datadir, snoteldir, days, ientry):
         return None
 
 
+@memory.cache
 def create_wrf_df(snotel_gdf: gpd.GeoDataFrame):
     """! Create a dataframe of WRF data for each snotel site."""
 
