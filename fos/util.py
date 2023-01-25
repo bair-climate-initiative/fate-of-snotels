@@ -56,27 +56,7 @@ def _wrfread_gcm(model, gcm, variant, dir, var, domain):
     dir = os.path.join(dir, domain)
     all_files = sorted(os.listdir(dir))
     read_files = []
-    """
-    
-model = 'hist'
-gcm = 'mpi-esm1-2-lr_r7i1p1f1_ssp370_bc'
-variant = 'r7i1p1f1'
-dir = '/glade/campaign/uwyo/wyom0112/postprocess/mpi-esm1-2-lr_r7i1p1f1_ssp370_bc/postprocess/d02'
-var = 'snow'
-domain = 'd02'
 
-    
-snow.daily.mpi-esm1-2-lr_ssp370_BIAS_CORRECT_r7i1p1f1_d02_2090.nc
-snow.daily.mpi-esm1-2-lr_ssp370_BIAS_CORRECT_r7i1p1f1_d02_2091.nc
-snow.daily.mpi-esm1-2-lr_ssp370_BIAS_CORRECT_r7i1p1f1_d02_2092.nc
-snow.daily.mpi-esm1-2-lr_ssp370_BIAS_CORRECT_r7i1p1f1_d02_2093.nc
-snow.daily.mpi-esm1-2-lr_ssp370_BIAS_CORRECT_r7i1p1f1_d02_2094.nc
-snow.daily.mpi-esm1-2-lr_ssp370_BIAS_CORRECT_r7i1p1f1_d02_2095.nc
-snow.daily.mpi-esm1-2-lr_ssp370_BIAS_CORRECT_r7i1p1f1_d02_2096.nc
-snow.daily.mpi-esm1-2-lr_ssp370_BIAS_CORRECT_r7i1p1f1_d02_2097.nc
-snow.daily.mpi-esm1-2-lr_ssp370_BIAS_CORRECT_r7i1p1f1_d02_2098.nc
-snow.daily.mpi-esm1-2-lr_ssp370_BIAS_CORRECT_r7i1p1f1_d02_2099.nc    
-    """
     for ii in all_files:
         if (
             ii.startswith(var + ".")
@@ -120,15 +100,19 @@ snow.daily.mpi-esm1-2-lr_ssp370_BIAS_CORRECT_r7i1p1f1_d02_2099.nc
 def screen_times_wrf(data, date_start, date_end):
     # Dimensions should be "day"
     dask.config.set(**{"array.slicing.split_large_chunks": True})
+
     datedata = pd.to_datetime(data.day)
-    
     data = data.sel(day=~((datedata.month < date_start[1]) & (datedata.year <= date_start[0])))
+
     datedata = pd.to_datetime(data.day)
     data = data.sel(day=~(datedata.year < date_start[0]))
+
     datedata = pd.to_datetime(data.day)
     data = data.sel(day=~((datedata.month >= date_end[1]) & (datedata.year >= date_end[0])))
+
     datedata = pd.to_datetime(data.day)
     data = data.sel(day=~(datedata.year > date_end[0]))
+
     return data
 
 
