@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env python3
 
 ## data loader for fate of snotel project ## 
 

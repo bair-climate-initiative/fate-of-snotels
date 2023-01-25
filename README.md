@@ -4,8 +4,8 @@ This library provides a set of utilities and analysis code for the Fate Of Snote
 ## TODOs
 - [x] Create fos package
 - [x] Add getting install instructions
+- [x] Add end-to-end tests
 - [ ] Add getting started instructions for a new team member
-- [ ] Add end-to-end tests
 - [ ] Add caching for slow loading operations (with command line / api override)
 - [ ] Add example notebooks (see [nbs/cjr-dev.ipynb][nbs/cjr-dev.ipynb] for WIP example)
 
@@ -31,17 +31,32 @@ pip install -e .
 ## Development
 The following section provides startup instructions for further developing MR Analyzer.
 
-### Structure
+### Code Structure
 
 ```
-- README.md : this file
+- README.md : this file ;-)
 - setup.cfg : add new dependencies here
 - pyproject.toml : can probably ignore this (sets up the build system)
 nbs/ : notebooks, development and exploratory code
 scripts/ : scripts for running and launching reproducbile analysis
 fos/: the main package directory
+    - dir.py: relevant directory locations -- avoid hardcoding directories in the code and put all values here.
     - util.py: common utilities, data loading, etc.
 ```
+
+### Data Structure
+
+On UCAR, this directory contains the "raw" data from the WRF simulations. 
+```
+- /glade/campaign/uwyo/wyom0112/postprocess/: Downscaled WRF simulations
+|
+|- {model}_{variant}_{experiment-id}_{bias correction flag}
+|
+|-- e.g. ukesm1-0-ll_r2i1p1f2_ssp370/postprocess/{domains} [e.g. d01: 45km domain, d02: 9km domain, d03: CA 3km, d04: WY 3km]
+|---- e.g. d02/wspd10mean.daily.ukesm1-0-ll_ssp370_r2i1p1f2_d02_2090.nc: {variable}.{sampling}.{model}
+```
+
+
 
 ### Development Setup
 

@@ -23,6 +23,7 @@ MM_TO_IN = 0.03937008
 
 # Keep global variables available to all modules
 ## define directories
+# TODO remove these and use dirs.py instead
 basedir = '/glade/u/home/mcowherd/'
 projectdir = basedir + 'fos-data/'
 snoteldir = projectdir + 'snoteldata/'
@@ -46,24 +47,36 @@ def setup(
     basedir = new_basedir
     domain = new_domain
     if new_projectdir is None:
-        new_projectdir = os.path.join(basedir, "m4099", "fate-of-snotel")
+        new_projectdir = os.path.join(basedir, "fate-of-snotel")
     projectdir = new_projectdir
 
 
-def _read_wrf_meta_data(dir_meta: str, domain: str):
-    """Read wrf meta data from nc4 files, and return lat, lon, height, and the filename"""
-    infile = os.path.join(dir_meta, f"wrfinput_{domain}")
-    data = xr.open_dataset(infile, engine="netcdf4")
-    lat = data.variables["XLAT"]
-    lon = data.variables["XLONG"]
-    z = data.variables["HGT"]
-    return (lat, lon, z, infile)
-
 
 def _wrfread_gcm(model, gcm, variant, dir, var, domain):
-    dir = dir + domain
+    dir = os.path.join(dir, domain)
     all_files = sorted(os.listdir(dir))
     read_files = []
+    """
+    
+model = 'hist'
+gcm = 'mpi-esm1-2-lr_r7i1p1f1_ssp370_bc'
+variant = 'r7i1p1f1'
+dir = '/glade/campaign/uwyo/wyom0112/postprocess/mpi-esm1-2-lr_r7i1p1f1_ssp370_bc/postprocess/d02'
+var = 'snow'
+domain = 'd02'
+
+    
+snow.daily.mpi-esm1-2-lr_ssp370_BIAS_CORRECT_r7i1p1f1_d02_2090.nc
+snow.daily.mpi-esm1-2-lr_ssp370_BIAS_CORRECT_r7i1p1f1_d02_2091.nc
+snow.daily.mpi-esm1-2-lr_ssp370_BIAS_CORRECT_r7i1p1f1_d02_2092.nc
+snow.daily.mpi-esm1-2-lr_ssp370_BIAS_CORRECT_r7i1p1f1_d02_2093.nc
+snow.daily.mpi-esm1-2-lr_ssp370_BIAS_CORRECT_r7i1p1f1_d02_2094.nc
+snow.daily.mpi-esm1-2-lr_ssp370_BIAS_CORRECT_r7i1p1f1_d02_2095.nc
+snow.daily.mpi-esm1-2-lr_ssp370_BIAS_CORRECT_r7i1p1f1_d02_2096.nc
+snow.daily.mpi-esm1-2-lr_ssp370_BIAS_CORRECT_r7i1p1f1_d02_2097.nc
+snow.daily.mpi-esm1-2-lr_ssp370_BIAS_CORRECT_r7i1p1f1_d02_2098.nc
+snow.daily.mpi-esm1-2-lr_ssp370_BIAS_CORRECT_r7i1p1f1_d02_2099.nc    
+    """
     for ii in all_files:
         if (
             ii.startswith(var + ".")
@@ -74,6 +87,7 @@ def _wrfread_gcm(model, gcm, variant, dir, var, domain):
         ):
             if domain in ii:
                 read_files.append(os.path.join(dir, str(ii)))
+    assert len(read_files) > 0, f"No matching files found in {dir}"
 
     del all_files
     # nf = len(read_files)
@@ -106,14 +120,15 @@ def _wrfread_gcm(model, gcm, variant, dir, var, domain):
 def screen_times_wrf(data, date_start, date_end):
     # Dimensions should be "day"
     dask.config.set(**{"array.slicing.split_large_chunks": True})
-    data = data.sel(
-        day=~((data.day.dt.month < date_start[1]) & (data.day.dt.year <= date_start[0]))
-    )
-    data = data.sel(day=~(data.day.dt.year < date_start[0]))
-    data = data.sel(
-        day=~((data.day.dt.month >= date_end[1]) & (data.day.dt.year >= date_end[0]))
-    )
-    data = data.sel(day=~(data.day.dt.year > date_end[0]))
+    datedata = pd.to_datetime(data.day)
+    
+    data = data.sel(day=~((datedata.month < date_start[1]) & (datedata.year <= date_start[0])))
+    datedata = pd.to_datetime(data.day)
+    data = data.sel(day=~(datedata.year < date_start[0]))
+    datedata = pd.to_datetime(data.day)
+    data = data.sel(day=~((datedata.month >= date_end[1]) & (datedata.year >= date_end[0])))
+    datedata = pd.to_datetime(data.day)
+    data = data.sel(day=~(datedata.year > date_end[0]))
     return data
 
 
@@ -144,13 +159,15 @@ def get_peak_date_amt(data):
     )
     return metrics
 
-def _metaread(dir_meta,domain):
-    file = "%swrfinput_%s" %(dir_meta,domain)
-    data = xr.open_dataset(file, engine ='netcdf4')
+def _read_wrf_meta_data(dir_meta: str, domain: str):
+    """Read wrf meta data from nc4 files, and return lat, lon, height, and the filename"""
+    infile = os.path.join(dir_meta, f"wrfinput_{domain}")
+    data = xr.open_dataset(infile, engine="netcdf4")
     lat = data.variables["XLAT"]
     lon = data.variables["XLONG"]
     z = data.variables["HGT"]
-    return (lat,lon,z,file)
+    return (lat, lon, z, infile)
+
 
 # maybe a bug in this, or in the maxarg stuff above??
 def shift_to_dowy(doy):
@@ -217,6 +234,9 @@ def get_wrf_avail(wrfdir):
     return
 
 def get_wrf_data(wrfdir, model, variant):
+    """
+    TODO - fix model variable assignment using a dictionary
+    """
     # change the model
     var = "snow"
     mod_historical = model +'_'+ variant + '_historical_bc'
@@ -233,6 +253,7 @@ def get_wrf_data(wrfdir, model, variant):
     date_start_pd, date_end_pd = [2014, 1, 1], [2100, 12, 31]
     gcm = mod_future
     modeldir = os.path.join(wrfdir, gcm ,'postprocess')
+    model = "ssp370"
     var_wrf_ssp370 = _wrfread_gcm(model, gcm, variant, modeldir, var, domain)
     var_wrf_ssp370 = screen_times_wrf(var_wrf_ssp370, date_start_pd, date_end_pd)
 
