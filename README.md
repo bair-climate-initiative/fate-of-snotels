@@ -21,7 +21,7 @@ git clone https://github.com/bair-climate-initiative/fate-of-snotels
 cd fate-of-snotels
 
 # Create and activate a virtual environment (or use an existing one)
-conda create -n "fos"
+conda create -n "fos" python=3.9 ipython
 conda activate fos
 
 # Install fos (in editable mode, so that you can update the code and have the updates propagated)
