@@ -199,6 +199,20 @@ def get_coords(coorddir):
     )
 
     return snotel_gdf, coords, huc6, huc8
+def get_wrf_from_shp(basin, lat_wrf, lon_wrf, data_wrf):
+    bounds = basin.bounds.values.flatten()
+    latmask = ((lat_wrf.data >bounds[1]) & (lat_wrf.data < bounds[3]))
+    lonmask = ((lon_wrf.data >bounds[0]) & (lon_wrf.data < bounds[2]))
+    basinmask = (latmask & lonmask)
+    pts = list(map(Point,  zip(lon_wrf[basinmask], lat_wrf[basinmask])))
+    polygon = basin[0:1].geometry.values[0]
+    inmask = list(map(polygon.contains,  pts))
+    inmask = np.array(inmask)
+    tmpdata = data_wrf[:,:,:].data.compute() ## this takes a minute... can we make it faster?
+    tmpdata[:,~basinmask] = np.nan
+    tmpdata2 = tmpdata[:,basinmask] 
+    tmpdata2[:,~inmask] = np.nan
+    return lon_wrf[basinmask], lat_wrf[basinmask], tmpdata2
 
 
 def get_wrf_avail(wrfdir):
