@@ -5,9 +5,9 @@ This library provides a set of utilities and analysis code for the Fate Of Snote
 - [x] Create fos package
 - [x] Add getting install instructions
 - [x] Add end-to-end tests
-- [ ] Add getting started instructions for a new team member
-- [ ] Add caching for slow loading operations (with command line / api override)
-- [ ] Add example notebooks (see [nbs/cjr-dev.ipynb][nbs/cjr-dev.ipynb] for WIP example)
+- [x] Add getting started instructions for a new team member
+- [x] Add caching for slow loading operations (with command line / api override)
+- [x] Add example notebooks (see [nbs/cjr-dev.ipynb][nbs/cjr-dev.ipynb] for example)
 
 
 ## Installation and Quickstart
@@ -27,6 +27,10 @@ conda activate fos
 # Install fos (in editable mode, so that you can update the code and have the updates propagated)
 pip install -e .
 ```
+
+## Analysis
+
+See the analysis notebooks at [nbs/cjr-dev.ipynb][nbs/cjr-dev.ipynb].
 
 ## Development
 The following section provides startup instructions for further developing MR Analyzer.
