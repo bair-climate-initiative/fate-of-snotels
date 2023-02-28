@@ -6,6 +6,8 @@ This module contains common utility functions used throughout the package.
 import datetime
 import glob
 import os
+import seaborn as sns
+from matplotlib import pyplot as plt
 
 import dask
 import geopandas as gpd
@@ -30,6 +32,12 @@ snoteldir = projectdir + 'snoteldata/'
 wrfdir = '/glade/campaign/uwyo/wyom0112/postprocess/'
 coorddir = wrfdir + 'WRF-data/wrf_coordinates/' 
 domain = "d02"
+
+from joblib import Memory
+# caching directory - get from environment variable
+location = os.environ.get("FOS_CACHE_DIR", "~/.fos_cachedir")
+memory = Memory(location, verbose=1)
+
 
 def setup(
     new_basedir: str = '/glade/u/home/mcowherd/',
@@ -214,6 +222,21 @@ def get_wrf_from_shp(basin, lat_wrf, lon_wrf, data_wrf):
     tmpdata2[:,~inmask] = np.nan
     return lon_wrf[basinmask], lat_wrf[basinmask], tmpdata2
 
+def setup_plot_style():
+    """
+    Set up the plot styles using seaborn.
+    """
+    plt.style.use('seaborn-paper')
+    sns.set_style("whitegrid")
+    sns.set_context("paper")
+    sns.set_palette("colorblind")
+    sns.set_color_codes()
+    sns.set_style(
+        {
+            "font.family": "sans-serif",
+            "font.sans-serif": ["Helvetica", "Arial", "DejaVu Sans"],
+        }
+    )
 
 def get_wrf_avail(wrfdir):
     """!
