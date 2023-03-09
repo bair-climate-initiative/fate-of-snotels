@@ -242,7 +242,9 @@ def get_wrf_avail(wrfdir):
     """!
     Read in the wrf data - WIP.
 
-    basedir [str]: base directory for wrf data, defauls to perlmutter system,
+    basedir [str]: base directory for
+    
+    wrf data, defauls to perlmutter system,
         use '/global/project/projectdirs/' for cori system
     domain [str]: domain to read in, defaults to 'd02'
     """
@@ -320,3 +322,194 @@ def create_wrf_df(snotel_gdf: gpd.GeoDataFrame):
             continue
     res = gpd.GeoDataFrame(entries)
     return res
+
+import datetime
+import pandas as pd
+import xarray as xr
+
+
+def split_train_test_val(data, time_periods):
+    partitions = {}
+    for period, dates in time_periods.items():
+        start_date = datetime.datetime.strptime(dates['start'], '%Y-%m-%d')
+        end_date = datetime.datetime.strptime(dates['end'], '%Y-%m-%d')
+        partitions[period] = {}
+        for key, value in data.items():
+            partitions[period][key] = {k: v for k, v in value.items() if start_date <= datetime.strptime(k, '%Y-%m-%d') <= end_date}
+    return partitions
+
+def partition_dataframe(df, periods):
+    partitions = {}
+    for period, (start, end) in periods.items():
+        partitions[period] = df.loc[start:end]
+    return partitions
+
+
+def get_wrf_data_points(wrfdata, j,k):
+    alldata = []
+    for exp in wrfdata:
+        alldata.append(exp[:,j,k])
+    combodata = np.concatenate(alldata)
+    return combodata
+
+def make_time_lists(time_periods):
+    dates_lists = {}
+    for period, dates in time_periods.items():
+        start_date = datetime.datetime.strptime(dates[0], '%Y-%m-%d')
+        end_date = datetime.datetime.strptime(dates[1], '%Y-%m-%d')
+        delta = datetime.timedelta(days=1)
+        dates = []
+
+        while start_date <= end_date:
+            dates.append(start_date)
+            start_date += delta
+        dates_lists[period] = dates
+
+    return dates_lists
+
+import numpy as np 
+## from neuralhydrology
+def create_xarray_data_vars(vars, y_hat: np.ndarray, y: np.ndarray, dates_lists: list):
+    outs = []
+    dstart = 0
+    dend = 0
+    for j, window in enumerate(dates_lists.keys()):
+        data = {}
+        dend += len(dates_lists[window])
+        for i, var in enumerate(vars):
+            data[f"{window}_{var}_obs"] = (('date'), y[dstart:dend, i])
+            data[f"{window}_{var}_sim"] = (('date'), y_hat[dstart:dend, i])
+            
+        coords = {
+        'date': dates_lists[window]}
+        
+        ds_out = xr.Dataset(data_vars=data, coords=coords)
+        outs.append(ds_out)
+        dstart += len(dates_lists[window])
+    return outs
+
+## wrf stuff
+"""!
+Common utility functions and shared constants/instantiations.
+This module contains common utility functions used throughout the package.
+"""
+
+import datetime
+import glob
+import os
+
+import dask
+import netCDF4 as nc
+import numpy as np
+import pandas as pd
+import xarray as xr
+from rich.console import Console
+
+##! Shared logging console object # noqa: E265
+console = Console()
+# Keep global variables available to all modules
+## define directories
+# TODO remove these and use dirs.py instead
+basedir = '/glade/u/home/mcowherd/'
+projectdir = basedir + 'fos-data/'
+snoteldir = projectdir + 'snoteldata/'
+wrfdir = '/glade/campaign/uwyo/wyom0112/postprocess/'
+coorddir = wrfdir + 'WRF-data/wrf_coordinates/' 
+domain = "d02"
+
+
+def wrfread(dir, model, variant, domain, var):
+    all_files = sorted(os.listdir(dir))
+    read_files = []
+    for ii in all_files:
+        if (
+            ii.startswith(var + ".")
+            and model in ii
+            and variant in ii
+            and domain in ii
+        ):
+            if domain in ii:
+                read_files.append(os.path.join(dir, str(ii)))
+    assert len(read_files) > 0, f"No matching files found in {dir}"
+
+    del all_files
+
+    data = xr.open_mfdataset(read_files, combine="by_coords")
+    var_read = data.variables[var]
+
+    dates = []
+    for val in data["day"].data:
+        try:
+            dates.append(datetime.datetime.strptime(str(val)[0:-2], "%Y%m%d").date())
+        except ValueError:
+            dates.append(datetime.datetime(int(str(val)[0:4]), int(str(val)[4:6]), 28))
+
+
+    var_read = xr.DataArray(var_read, dims=["day", "lat2d", "lon2d"])
+    var_read["day"] = dates
+    return var_read
+
+def screen_times_wrf(data, date_start, date_end):
+    # Dimensions should be "day"
+    dask.config.set(**{"array.slicing.split_large_chunks": True})
+
+    datedata = pd.to_datetime(data.day)
+    data = data.sel(day=~((datedata.month < date_start[1]) & (datedata.year <= date_start[0])))
+
+    datedata = pd.to_datetime(data.day)
+    data = data.sel(day=~(datedata.year < date_start[0]))
+
+    datedata = pd.to_datetime(data.day)
+    data = data.sel(day=~((datedata.month >= date_end[1]) & (datedata.year >= date_end[0])))
+
+    datedata = pd.to_datetime(data.day)
+    data = data.sel(day=~(datedata.year > date_end[0]))
+
+    return data
+
+def _read_wrf_meta_data(dir_meta: str, domain: str):
+    """Read wrf meta data from nc4 files, and return lat, lon, height, and the filename"""
+    infile = os.path.join(dir_meta, f"wrfinput_{domain}")
+    data = xr.open_dataset(infile, engine="netcdf4")
+    lat = data.variables["XLAT"]
+    lon = data.variables["XLONG"]
+    z = data.variables["HGT"]
+    return (lat, lon, z, infile)
+
+
+def get_coords(coorddir):
+    """Get the coordinates of the WRF grid and snotels."""
+    #coorddir = os.path.join(projectdir, "WRF-data", "wrf_coordinates")
+    dir_meta = coorddir
+
+    # Load the location of all wrf pixels
+    lat1, lon1, z1, _ = _read_wrf_meta_data(dir_meta, domain)
+    lon_wrf = lon1[0, :, :]
+    lat_wrf = lat1[0, :, :]
+    z_wrf = z1[0, :, :]
+    lat_wrf = xr.DataArray(lat_wrf, dims=["lat2d", "lon2d"])
+    lon_wrf = xr.DataArray(lon_wrf, dims=["lat2d", "lon2d"])
+    z_wrf = xr.DataArray(z_wrf, dims=["lat2d", "lon2d"])
+
+    # Load the location info for all snotels
+    coords = nc.Dataset(os.path.join(coorddir, "wrfinput_d02_coord.nc"))
+
+    return coords 
+
+
+
+def get_wrf_avail(wrfdir):
+    """!
+    Read in the wrf data - WIP.
+
+    basedir [str]: base directory for wrf data, defauls to perlmutter system,
+        use '/global/project/projectdirs/' for cori system
+    domain [str]: domain to read in, defaults to 'd02'
+    """
+    # log the bc models available
+    bc_glob = glob.glob(os.path.join(wrfdir, "*_bc"))
+    bcmodels = [val.split("/")[-1] for val in bc_glob]
+    assert len(bcmodels) > 0, f"No BC models found in {wrfdir}"
+    console.log("Available BC Models:", bcmodels)
+    console.log("run get_wrf_data(wrfdir,model) with the name of the model you want to load")
+    return
