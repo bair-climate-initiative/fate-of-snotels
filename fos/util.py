@@ -60,9 +60,9 @@ def setup(
 
 
 
-def _wrfread_gcm(model, gcm, variant, dir, var, domain):
-    dir = os.path.join(dir, domain)
-    all_files = sorted(os.listdir(dir))
+def _wrfread_gcm(model, gcm, variant, datadir, var, domain):
+    datadir = os.path.join(datadir, domain)
+    all_files = sorted(os.listdir(datadir))
     read_files = []
 
     for ii in all_files:
@@ -74,8 +74,8 @@ def _wrfread_gcm(model, gcm, variant, dir, var, domain):
             and domain in ii
         ):
             if domain in ii:
-                read_files.append(os.path.join(dir, str(ii)))
-    assert len(read_files) > 0, f"No matching files found in {dir}"
+                read_files.append(os.path.join(datadir, str(ii)))
+    assert len(read_files) > 0, f"No matching files found in {datadir}"
 
     del all_files
     # nf = len(read_files)
@@ -418,8 +418,9 @@ coorddir = wrfdir + 'WRF-data/wrf_coordinates/'
 domain = "d02"
 
 
-def wrfread(dir, model, variant, domain, var):
-    all_files = sorted(os.listdir(dir))
+def wrfread(datadir, exp, variant, domain, var):
+    modeldir = datadir + f'_{variant}_{exp}_bc'
+    all_files = sorted(os.listdir(modeldir))
     read_files = []
     for ii in all_files:
         if (
@@ -429,8 +430,8 @@ def wrfread(dir, model, variant, domain, var):
             and domain in ii
         ):
             if domain in ii:
-                read_files.append(os.path.join(dir, str(ii)))
-    assert len(read_files) > 0, f"No matching files found in {dir}"
+                read_files.append(os.path.join(datadir, str(ii)))
+    assert len(read_files) > 0, f"No matching files found in {datadir}"
 
     del all_files
 

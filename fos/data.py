@@ -29,15 +29,18 @@ snotel_gdf = gpd.GeoDataFrame(data = {'site_name':snotelmeta.site_name,
 ## and the time of peak SWE across the HUC-6 watershed in which the SNOTEL resides
 in6 = []
 in8 = []
+ptnames = []
 for i in snotel_gdf.index:
     point = snotel_gdf[snotel_gdf.index == i].geometry[i]
+    ptname = snotel_gdf[snotel_gdf.index == i].site_number[i]
     basin = huc6[huc6.contains(point)]
     k = basin.name.index[0]
     in6.append(basin.name[k])
     basin = huc8[huc8.contains(point)]
     k = basin.name.index[0]
     in8.append(basin.name[k])
-in6s = pd.Series(in6)
-in8s = pd.Series(in8)
+    ptnames.append(ptname)
+in6s = pd.Series(in6, index = ptnames)
+in8s = pd.Series(in8, index = ptnames)
 
 snotel_no_ak = snotel_gdf[snotel_gdf.state != "AK"]

@@ -1,8 +1,8 @@
 import numpy as np 
-from utils import partition_dataframe, make_time_lists
+from fos.util import partition_dataframe, make_time_lists
 from xarray.core.dataarray import DataArray
 from xarray.core.dataset import Dataset
-from utils import create_xarray_data_vars
+from fos.util import create_xarray_data_vars
 
 def snotel_value(forcing_split: dict, obs_split: dict, dates_lists: dict, model_params: dict = {'vars': ['SWE'], 'fvars': ['SNOTEL_SWE']}):
     """ 
