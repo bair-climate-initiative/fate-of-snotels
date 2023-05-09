@@ -205,8 +205,8 @@ def get_coords(coorddir):
         geometry=gpd.points_from_xy(snotelmeta.lon, snotelmeta.lat),
         crs="epsg:4326",
     )
-
     return snotel_gdf, coords, huc6, huc8
+
 def get_wrf_from_shp(basin, lat_wrf, lon_wrf, data_wrf):
     bounds = basin.bounds.values.flatten()
     latmask = ((lat_wrf.data >bounds[1]) & (lat_wrf.data < bounds[3]))
